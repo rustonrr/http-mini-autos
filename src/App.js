@@ -10,47 +10,104 @@ class App extends Component {
 
     this.state = {
       vehiclesToDisplay: [],
-      buyersToDisplay: []
+      buyersToDisplay: [],
+      vehicleUrl: 'https://joes-autos.herokuapp.com'
     }
 
     this.getVehicles = this.getVehicles.bind(this);
     this.getPotentialBuyers = this.getPotentialBuyers.bind(this);
     this.onSoldButtonClick = this.onSoldButtonClick.bind(this);
     this.addCar = this.addCar.bind(this);
+    this.addBuyer = this.addBuyer.bind(this);
     this.filterByColor = this.filterByColor.bind(this);
     this.filterByMake = this.filterByMake.bind(this);
+    this.filterByYear = this.filterByYear.bind(this);
+    this.noLongerInterested = this.noLongerInterested.bind(this);
+  }
+
+  componentDidMount(){
+    this.getVehicles()
+    this.getPotentialBuyers()
   }
 
   getVehicles() {
     // axios (GET)
     // setState with response -> vehiclesToDisplay
+    axios.get(this.state.vehicleUrl + '/api/vehicles').then((response) => {
+      this.setState({
+        vehiclesToDisplay: response.data.vehicles
+      })
+    })
   }
 
   getPotentialBuyers() {
     // axios (GET)
     // setState with response -> buyersToDisplay
+    axios.get(this.state.vehicleUrl + '/api/buyers').then( ((response) => {
+      this.setState({
+        buyersToDisplay: response.data.buyers
+      })
+    }))
   }
 
-  onSoldButtonClick() {
+  onSoldButtonClick(id) {
     // axios (DELETE)
     // setState with response -> vehiclesToDisplay
+    axios.delete(this.state.vehicleUrl + '/api/vehicles/' + id).then((response) => {
+      this.setState({
+        vehiclesToDisplay: response.data.vehicles
+      })
+    })
+  }
+
+  noLongerInterested(id) {
+    axios.delete(this.state.vehicleUrl + '/api/buyers/' + id).then((response) => {
+      this.setState({
+        buyersToDisplay: response.data.buyers
+      })
+    })
   }
 
   filterByMake() {
     let make = this.refs.selectedMake.value
     // axios (GET)
     // setState with response -> vehiclesToDisplay
+    axios.get(this.state.vehicleUrl + '/api/vehiclesByMake?make=' + make).then((response) => {
+      this.setState({
+        vehiclesToDisplay: response.data
+      })
+    })
   }
 
   filterByColor() {
     let color = this.refs.selectedColor.value;
     // axios (GET)
     // setState with response -> vehiclesToDisplay
+    axios.get(this.state.vehicleUrl + '/api/vehicleByColor?color=' + color).then((response) => {
+      this.setState({
+        vehiclesToDisplay: response.data
+      })
+    })
   }
 
-  updatePrice(priceChange) {
+  filterByYear() {
+    let year = this.refs.selectedYear.value;
+    console.log('year', this.refs.selectedYear.value)
+    axios.get(this.state.vehicleUrl + '/api/vehiclesByYear?year=' + year).then((response) => {
+      this.setState({
+        vehiclesToDisplay:response.data
+      })
+    })
+  }
+
+  updatePrice(id, priceChange) {
     // axios (PUT)
     // setState with response -> vehiclesToDisplay
+    axios.put(this.state.vehicleUrl + '/api/vehicle/' + id + '/' + priceChange).then((response => {
+      this.setState({
+        vehiclesToDisplay: response.data.vehicles
+      })
+    }))
   }
 
   addCar(){
@@ -63,7 +120,15 @@ class App extends Component {
   }  
   // axios (POST)
   // setState with response -> vehiclesToDisplay
-}
+  axios.post(this.state.vehicleUrl + '/api/vehicles', newCar).then( (response) => {
+    if(response.status === 200){
+      this.setState({
+        success: true,
+        vehiclesToDisplay: response.data.vehicles
+      })
+    }
+  })
+  }
 
 addBuyer() {
   let newBuyer ={
@@ -73,11 +138,20 @@ addBuyer() {
   }
   //axios (POST)
   // setState with response -> buyersToDisplay
-}
+  axios.post(this.state.vehicleUrl + '/api/buyers', newBuyer).then( (response) => {
+    if(response.status === 200){
+      this.setState({
+        success: true,
+        buyersToDisplay: response.data.buyers
+      
+      })
+    }
+  })
+  }
 
 
   render() {
-    const vehicles = this.state.vehiclesToDisplay.map( v => {
+    const vehicles = this.state.vehiclesToDisplay && this.state.vehiclesToDisplay.map( v => {
       return (
         <div key={ v.id }>
           <p>Make: { v.make }</p>
@@ -86,10 +160,10 @@ addBuyer() {
           <p>Color: { v.color }</p>
           <p>Price: { v.price }</p>
           <button
-            onClick={ () => this.updatePrice('up') }
+            onClick={ () => this.updatePrice(v.id, 'up') }
             >Increase Price</button>
           <button
-            onClick={ () => this.updatePrice('down') }
+            onClick={ () => this.updatePrice(v.id, 'down') }
             >Decrease Price</button>  
           <button 
             onClick={ () => this.onSoldButtonClick(v.id) }
@@ -105,7 +179,9 @@ addBuyer() {
           <p>Name: {person.name}</p>
           <p>Phone: {person.phone}</p>
           <p>Address: {person.address}</p>
-          <button>No longer interested</button>
+          <button
+            onClick={ () => this.noLongerInterested(person.id) }
+            >No longer interested</button>
           <hr className='hr' />
         </div> 
       )
@@ -148,6 +224,16 @@ addBuyer() {
             <option value="violet">Violet</option>
             <option value="teal">Teal</option>
           </select>
+          <select 
+            ref='selectedYear'
+            onChange={ this.filterByYear }
+            className='btn-sp'>
+            <option value="" selected disabled>Filter by Year</option>
+            <option value="2001">2001</option>
+            <option value="2002">2002</option>
+
+          </select>
+          
           <button
             className='btn-sp'
             onClick={ this.getPotentialBuyers }
@@ -163,7 +249,9 @@ addBuyer() {
           <input className='btn-sp' placeholder='year' ref='year'/>
           <input className='btn-sp' placeholder='color' ref='color'/>
           <input className='btn-sp' placeholder='price' ref='price'/>
-          <button className='btn-sp' onClick={this.addCar}>Add</button>
+          <button className='btn-sp' onClick={this.addCar} style={ {backgroundColor: this.state.success 
+          ? 'lightgreen' 
+          : 'pink' }}>Add</button>
         </p>
         <p className='form-wrap'>
           Add Possible buyer:
